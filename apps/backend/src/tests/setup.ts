@@ -4,7 +4,16 @@ import dotenv from 'dotenv';
 dotenv.config({ path: '.env.test' });
 
 // Set test environment
-process.env.NODE_ENV = 'test';
+process.env['NODE_ENV'] = 'test';
+
+// Jest types
+declare global {
+  var beforeAll: (fn: () => void | Promise<void>) => void;
+  var afterAll: (fn: () => void | Promise<void>) => void;
+  var beforeEach: (fn: () => void | Promise<void>) => void;
+  var afterEach: (fn: () => void | Promise<void>) => void;
+  var jest: any;
+}
 
 // Global test setup
 beforeAll(() => {

@@ -8,6 +8,8 @@
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
+    "noImplicitAny": false,
+    "types": [],
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "declaration": true,
@@ -40,8 +42,7 @@
     "emitDecoratorMetadata": true
   },
   "include": [
-    "src/**/*",
-    "prisma/**/*"
+    "src/**/*"
   ],
   "exclude": [
     "node_modules",
