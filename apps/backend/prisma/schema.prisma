@@ -1,0 +1,454 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User Management
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  username      String    @unique
+  password      String
+  firstName     String?
+  lastName      String?
+  phone         String?
+  role          UserRole  @default(CUSTOMER)
+  isActive      Boolean   @default(true)
+  emailVerified Boolean   @default(false)
+  emailVerifiedAt DateTime?
+  lastLoginAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  // Relations
+  profile       UserProfile?
+  stores        Store[]
+  orders        Order[]
+  reviews       Review[]
+  addresses     Address[]
+  refreshTokens RefreshToken[]
+
+  @@map("users")
+}
+
+model UserProfile {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  avatar      String?
+  bio         String?
+  dateOfBirth DateTime?
+  address     Json?
+  preferences Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_profiles")
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+// Store Management
+model Store {
+  id          String      @id @default(cuid())
+  name        String
+  slug        String      @unique
+  description String?
+  logo        String?
+  banner      String?
+  ownerId     String
+  status      StoreStatus @default(DRAFT)
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  deletedAt   DateTime?
+
+  // Relations
+  owner       User        @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  settings    StoreSettings?
+  address     Address?
+  categories  Category[]
+  products    Product[]
+  orders      Order[]
+  customers   Customer[]
+
+  @@map("stores")
+}
+
+model StoreSettings {
+  id                    String   @id @default(cuid())
+  storeId               String   @unique
+  currency              String   @default("USD")
+  language              String   @default("en")
+  timezone              String   @default("UTC")
+  taxRate               Decimal  @default(0)
+  shippingEnabled       Boolean  @default(false)
+  pickupEnabled         Boolean  @default(true)
+  deliveryEnabled       Boolean  @default(false)
+  autoAcceptOrders      Boolean  @default(false)
+  requireCustomerApproval Boolean @default(false)
+  notificationSettings  Json?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  // Relations
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@map("store_settings")
+}
+
+// Address Management
+model Address {
+  id          String   @id @default(cuid())
+  userId      String?
+  storeId     String?
+  customerId  String?
+  type        AddressType
+  firstName   String?
+  lastName    String?
+  company     String?
+  address1    String
+  address2    String?
+  city        String
+  state       String?
+  postalCode  String
+  country     String
+  phone       String?
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user     User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  store    Store?    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@map("addresses")
+}
+
+// Category Management
+model Category {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String
+  description String?
+  image       String?
+  parentId    String?
+  storeId     String
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  parent   Category? @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children Category[] @relation("CategoryHierarchy")
+  store    Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  products Product[]
+
+  @@unique([slug, storeId])
+  @@map("categories")
+}
+
+// Product Management
+model Product {
+  id                String        @id @default(cuid())
+  name              String
+  slug              String
+  description       String?
+  sku               String?
+  barcode           String?
+  price             Decimal
+  comparePrice      Decimal?
+  costPrice         Decimal?
+  weight            Decimal?
+  dimensions        Json?
+  categoryId        String?
+  storeId           String
+  status            ProductStatus @default(DRAFT)
+  isActive          Boolean       @default(true)
+  isFeatured        Boolean       @default(false)
+  isDigital         Boolean       @default(false)
+  requiresShipping  Boolean       @default(true)
+  trackInventory    Boolean       @default(true)
+  lowStockThreshold Int           @default(5)
+  seoTitle          String?
+  seoDescription    String?
+  seoKeywords       String?
+  tags              String[]
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  deletedAt         DateTime?
+
+  // Relations
+  category    Category?        @relation(fields: [categoryId], references: [id])
+  store       Store            @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  variants    ProductVariant[]
+  images      ProductImage[]
+  orderItems  OrderItem[]
+  reviews     Review[]
+
+  @@unique([slug, storeId])
+  @@map("products")
+}
+
+model ProductVariant {
+  id          String   @id @default(cuid())
+  productId   String
+  name        String
+  sku         String?
+  price       Decimal
+  comparePrice Decimal?
+  costPrice   Decimal?
+  weight      Decimal?
+  dimensions  Json?
+  inventory   Int      @default(0)
+  attributes  Json?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  orderItems OrderItem[]
+
+  @@map("product_variants")
+}
+
+model ProductImage {
+  id        String   @id @default(cuid())
+  productId String
+  url       String
+  alt       String?
+  isPrimary Boolean  @default(false)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  // Relations
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("product_images")
+}
+
+// Customer Management
+model Customer {
+  id          String   @id @default(cuid())
+  firstName   String
+  lastName    String
+  email       String
+  phone       String?
+  dateOfBirth DateTime?
+  gender      Gender?
+  storeId     String
+  isActive    Boolean  @default(true)
+  isVerified  Boolean  @default(false)
+  preferences Json?
+  tags        String[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  // Relations
+  store    Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  address  Address?
+  orders   Order[]
+  reviews  Review[]
+
+  @@unique([email, storeId])
+  @@map("customers")
+}
+
+// Order Management
+model Order {
+  id              String        @id @default(cuid())
+  orderNumber     String        @unique
+  storeId         String
+  customerId      String
+  status          OrderStatus   @default(PENDING)
+  paymentStatus   PaymentStatus @default(PENDING)
+  subtotal        Decimal
+  taxAmount       Decimal       @default(0)
+  shippingCost    Decimal       @default(0)
+  discountAmount  Decimal       @default(0)
+  total           Decimal
+  currency        String        @default("USD")
+  notes           String?
+  customerNotes   String?
+  shippingAddress Json?
+  billingAddress  Json?
+  shippingMethod  String?
+  paymentMethod   String?
+  paidAt          DateTime?
+  shippedAt       DateTime?
+  deliveredAt     DateTime?
+  cancelledAt     DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  store     Store       @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  customer  Customer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  items     OrderItem[]
+  notes     OrderNote[]
+  payments  Payment[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id           String   @id @default(cuid())
+  orderId      String
+  productId    String
+  variantId    String?
+  quantity     Int
+  unitPrice    Decimal
+  totalPrice   Decimal
+  productName  String
+  variantName  String?
+  productSku   String?
+  variantSku   String?
+  createdAt    DateTime @default(now())
+
+  // Relations
+  order   Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product       @relation(fields: [productId], references: [id])
+  variant ProductVariant? @relation(fields: [variantId], references: [id])
+
+  @@map("order_items")
+}
+
+model OrderNote {
+  id        String   @id @default(cuid())
+  orderId   String
+  note      String
+  isInternal Boolean @default(false)
+  createdAt DateTime @default(now())
+
+  // Relations
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("order_notes")
+}
+
+// Payment Management
+model Payment {
+  id            String        @id @default(cuid())
+  orderId       String
+  amount        Decimal
+  currency      String
+  method        PaymentMethod
+  status        PaymentStatus @default(PENDING)
+  transactionId String?
+  gateway       String?
+  gatewayData   Json?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  // Relations
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("payments")
+}
+
+// Review Management
+model Review {
+  id        String   @id @default(cuid())
+  productId String
+  userId    String?
+  customerId String?
+  rating    Int
+  title     String?
+  comment   String?
+  isVerified Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user     User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  @@map("reviews")
+}
+
+// Enums
+enum UserRole {
+  ADMIN
+  STORE_OWNER
+  CUSTOMER
+}
+
+enum StoreStatus {
+  DRAFT
+  ACTIVE
+  SUSPENDED
+  CLOSED
+}
+
+enum AddressType {
+  SHIPPING
+  BILLING
+  BOTH
+}
+
+enum ProductStatus {
+  DRAFT
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum PaymentMethod {
+  CREDIT_CARD
+  DEBIT_CARD
+  PAYPAL
+  BANK_TRANSFER
+  CASH
+  OTHER
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+  PREFER_NOT_TO_SAY
+} 
