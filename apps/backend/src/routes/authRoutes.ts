@@ -1,30 +1,25 @@
 import { Router } from 'express';
 import { authController } from '@/controllers/authController';
 import { authenticate, optionalAuth } from '@/middleware/auth';
-import { 
-  validateUserRegistration, 
-  validateUserLogin, 
-  validateUserUpdate,
-  validatePasswordChange,
-  validatePasswordReset
-} from '@/middleware/validation';
+import { validateRequest } from '@/validations';
+import { authValidation } from '@/validations/authValidation';
 
 const router = Router();
 
 // Public routes
-router.post('/register', validateUserRegistration, authController.register);
-router.post('/login', validateUserLogin, authController.login);
-router.post('/refresh', authController.refreshToken);
-router.post('/forgot-password', authController.forgotPassword);
-router.post('/reset-password', validatePasswordReset, authController.resetPassword);
-router.post('/verify-email', authController.verifyEmail);
-router.post('/resend-verification', authController.resendVerification);
+router.post('/register', validateRequest(authValidation.register), authController.register);
+router.post('/login', validateRequest(authValidation.login), authController.login);
+router.post('/refresh', validateRequest(authValidation.refreshToken), authController.refreshToken);
+router.post('/forgot-password', validateRequest(authValidation.forgotPassword), authController.forgotPassword);
+router.post('/reset-password', validateRequest(authValidation.resetPassword), authController.resetPassword);
+router.post('/verify-email', validateRequest(authValidation.verifyEmail), authController.verifyEmail);
+router.post('/resend-verification', validateRequest(authValidation.resendVerification), authController.resendVerification);
 
 // Protected routes
 router.use(authenticate);
 router.post('/logout', authController.logout);
 router.get('/me', authController.getProfile);
-router.put('/profile', validateUserUpdate, authController.updateProfile);
-router.put('/change-password', validatePasswordChange, authController.changePassword);
+router.put('/profile', validateRequest(authValidation.updateProfile), authController.updateProfile);
+router.put('/change-password', validateRequest(authValidation.changePassword), authController.changePassword);
 
 export default router; 

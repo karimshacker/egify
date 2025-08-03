@@ -2,7 +2,7 @@ import { PrismaClient, OrderStatus, PaymentStatus } from '@prisma/client';
 import { prisma } from '@/utils/database';
 import { logger } from '@/utils/logger';
 import { emailService } from './emailService';
-import { io } from '@/index';
+import { io } from '@/app';
 
 export interface NotificationData {
   type: string;
@@ -417,7 +417,7 @@ export class NotificationService {
       logger.error('Error marking notification as read:', error);
       throw error;
     }
-
+  }
 
   /**
    * Get unread notification count for a user

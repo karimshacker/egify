@@ -9,11 +9,10 @@ import rateLimit from 'express-rate-limit';
 import cookieParser from 'cookie-parser';
 import session from 'express-session';
 import RedisStore from 'connect-redis';
-import { createClient } from 'redis';
 import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
 import { createServer } from 'http';
-import { Server } from 'socket.io';
+import { Server, Socket } from 'socket.io';
 
 import { logger } from '@/utils/logger';
 import { connectDatabase, disconnectDatabase } from '@/utils/database';
@@ -37,7 +36,7 @@ import webhookRoutes from '@/routes/webhookRoutes';
 import adminRoutes from '@/routes/adminRoutes';
 
 // Import types
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response } from 'express';
 
 // Load environment variables
 import dotenv from 'dotenv';
@@ -47,7 +46,7 @@ const app = express();
 const server = createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: process.env['FRONTEND_URL'] || 'http://localhost:3000',
     methods: ['GET', 'POST'],
     credentials: true,
   },
@@ -68,7 +67,7 @@ const swaggerOptions = {
     },
     servers: [
       {
-        url: process.env.API_URL || 'http://localhost:4000',
+        url: process.env['API_URL'] || 'http://localhost:4000',
         description: 'Development server',
       },
     ],
@@ -114,8 +113,8 @@ const sessionStore = new RedisStore({
 app.use(helmet());
 app.use(cors({
   origin: [
-    process.env.FRONTEND_URL || 'http://localhost:3000',
-    process.env.STOREFRONT_URL || 'http://localhost:3001',
+    process.env['FRONTEND_URL'] || 'http://localhost:3000',
+    process.env['STOREFRONT_URL'] || 'http://localhost:3001',
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
@@ -130,11 +129,11 @@ app.use(cookieParser());
 // Session configuration
 app.use(session({
   store: sessionStore,
-  secret: process.env.SESSION_SECRET || 'your-secret-key',
+  secret: process.env['SESSION_SECRET'] || 'your-secret-key',
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: process.env.NODE_ENV === 'production',
+    secure: process.env['NODE_ENV'] === 'production',
     httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
     sameSite: 'lax',
@@ -142,7 +141,7 @@ app.use(session({
 }));
 
 // Logging
-if (process.env.NODE_ENV === 'development') {
+if (process.env['NODE_ENV'] === 'development') {
   app.use(morgan('dev'));
 } else {
   app.use(morgan('combined', {
@@ -173,7 +172,7 @@ app.get('/health', async (req: Request, res: Response) => {
       status: 'ok',
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
-      environment: process.env.NODE_ENV,
+      environment: process.env['NODE_ENV'],
       services: {
         database: dbHealth ? 'healthy' : 'unhealthy',
         redis: redisHealth ? 'healthy' : 'unhealthy',
@@ -213,7 +212,7 @@ app.use('/api/webhooks', webhookRoutes);
 app.use('/api/admin', adminRoutes);
 
 // Socket.IO connection handling
-io.on('connection', (socket) => {
+io.on('connection', (socket: Socket) => {
   logger.info(`Client connected: ${socket.id}`);
 
   socket.on('join-store', (storeId: string) => {
@@ -261,7 +260,7 @@ async function initializeApp() {
     await connectDatabase();
     
     // Start server
-    const PORT = process.env.PORT || 4000;
+    const PORT = process.env['PORT'] || 4000;
     server.listen(PORT, () => {
       logger.info(`🚀 Server running on port ${PORT}`);
       logger.info(`📚 API Documentation: http://localhost:${PORT}/api-docs`);

@@ -1,47 +1,62 @@
 # Egify Backend API
 
-A comprehensive SaaS e-commerce platform backend built with Node.js, Express, TypeScript, and Prisma.
+A comprehensive SaaS e-commerce platform backend built with Node.js, Express, TypeScript, and PostgreSQL.
 
-## Features
+## 🚀 Features
 
-- **User Management**: Authentication, authorization, and user profiles
-- **Store Management**: Multi-tenant store creation and management
-- **Product Management**: Product catalog with variants and inventory
-- **Order Management**: Complete order lifecycle management
-- **Payment Processing**: Stripe and PayPal integration
-- **Shipping**: Shipping zones, rates, and tracking
-- **Marketing**: Email campaigns, templates, and subscriber management
-- **Analytics**: Comprehensive analytics and reporting
-- **Admin Panel**: Platform administration and monitoring
-- **Webhooks**: External service integrations
-- **Real-time Updates**: Socket.IO for real-time notifications
+- **Multi-tenant Architecture**: Support for multiple stores with isolated data
+- **Authentication & Authorization**: JWT-based auth with role-based access control
+- **Product Management**: Complete product catalog with variants, categories, and inventory
+- **Order Management**: Full order lifecycle from creation to fulfillment
+- **Payment Processing**: Stripe integration with webhook support
+- **Customer Management**: Customer profiles, addresses, and preferences
+- **Shipping & Fulfillment**: Shipping zones, rates, and tracking
+- **Marketing Tools**: Email campaigns, templates, and subscriber management
+- **Analytics**: Sales, customer, and product analytics
+- **Real-time Updates**: Socket.IO for live notifications
+- **File Upload**: AWS S3 integration for media storage
+- **Search**: Elasticsearch integration for product search
+- **Admin Panel**: Centralized administration interface
 
-## Tech Stack
+## 🏗️ Architecture
+
+```
+src/
+├── controllers/     # Request handlers
+├── services/        # Business logic
+├── routes/          # API route definitions
+├── middleware/      # Custom middleware
+├── validations/     # Request validation schemas
+├── utils/           # Utility functions
+├── types/           # TypeScript type definitions
+└── tests/           # Test files
+```
+
+## 🛠️ Tech Stack
 
 - **Runtime**: Node.js 18+
 - **Framework**: Express.js
 - **Language**: TypeScript
 - **Database**: PostgreSQL with Prisma ORM
 - **Cache**: Redis
-- **Authentication**: JWT with refresh tokens
-- **File Upload**: AWS S3
-- **Payments**: Stripe, PayPal
+- **Authentication**: JWT, Passport.js
+- **File Storage**: AWS S3
+- **Payment**: Stripe
 - **Email**: Nodemailer
 - **Search**: Elasticsearch
 - **Real-time**: Socket.IO
 - **Documentation**: Swagger/OpenAPI
-- **Testing**: Jest
-- **Logging**: Winston
+- **Testing**: Jest, Supertest
 
-## Prerequisites
+## 📋 Prerequisites
 
-- Node.js 18+
-- PostgreSQL 12+
+- Node.js 18+ 
+- PostgreSQL 13+
 - Redis 6+
-- AWS S3 (for file uploads)
-- Elasticsearch 7+ (optional, for search)
+- AWS S3 bucket (for file uploads)
+- Stripe account (for payments)
 
-## Installation
+## 🔧 Installation
 
 1. **Clone the repository**
    ```bash
@@ -54,13 +69,47 @@ A comprehensive SaaS e-commerce platform backend built with Node.js, Express, Ty
    npm install
    ```
 
-3. **Set up environment variables**
+3. **Environment setup**
    ```bash
    cp env.example .env
-   # Edit .env with your configuration
+   ```
+   
+   Update the `.env` file with your configuration:
+   ```env
+   # Database
+   DATABASE_URL="postgresql://username:password@localhost:5432/egify"
+   
+   # Redis
+   REDIS_URL="redis://localhost:6379"
+   
+   # JWT
+   JWT_SECRET="your-jwt-secret"
+   JWT_REFRESH_SECRET="your-refresh-secret"
+   
+   # AWS S3
+   AWS_ACCESS_KEY_ID="your-access-key"
+   AWS_SECRET_ACCESS_KEY="your-secret-key"
+   AWS_REGION="us-east-1"
+   AWS_S3_BUCKET="your-bucket-name"
+   
+   # Stripe
+   STRIPE_SECRET_KEY="sk_test_..."
+   STRIPE_WEBHOOK_SECRET="whsec_..."
+   
+   # Email
+   SMTP_HOST="smtp.gmail.com"
+   SMTP_PORT=587
+   SMTP_USER="your-email@gmail.com"
+   SMTP_PASS="your-app-password"
+   
+   # App
+   NODE_ENV="development"
+   PORT=4000
+   FRONTEND_URL="http://localhost:3000"
+   STOREFRONT_URL="http://localhost:3001"
    ```
 
-4. **Set up the database**
+4. **Database setup**
    ```bash
    # Generate Prisma client
    npm run db:generate
@@ -68,161 +117,116 @@ A comprehensive SaaS e-commerce platform backend built with Node.js, Express, Ty
    # Run migrations
    npm run db:migrate
    
-   # Seed the database (optional)
+   # Seed database (optional)
    npm run db:seed
    ```
 
-5. **Start the development server**
+5. **Start development server**
    ```bash
    npm run dev
    ```
 
-## Environment Variables
+## 🗄️ Database Schema
 
-Copy `env.example` to `.env` and configure the following variables:
+The application uses Prisma ORM with the following main entities:
 
-### Required
-- `DATABASE_URL`: PostgreSQL connection string
-- `JWT_SECRET`: Secret key for JWT tokens
-- `REDIS_URL`: Redis connection string
+- **Users**: Platform users (admin, store owners, customers)
+- **Stores**: Multi-tenant store instances
+- **Products**: Product catalog with variants
+- **Orders**: Order management and fulfillment
+- **Customers**: Customer profiles and data
+- **Payments**: Payment processing and tracking
+- **Shipping**: Shipping zones and rates
+- **Marketing**: Campaigns and email templates
 
-### Optional
-- `PORT`: Server port (default: 4000)
-- `NODE_ENV`: Environment (development/production)
-- `AWS_*`: AWS S3 configuration for file uploads
-- `STRIPE_*`: Stripe payment configuration
-- `SMTP_*`: Email configuration
-- `ELASTICSEARCH_URL`: Elasticsearch connection
-
-## API Documentation
-
-Once the server is running, you can access the API documentation at:
-- Swagger UI: `http://localhost:4000/api-docs`
-- OpenAPI JSON: `http://localhost:4000/api-docs.json`
-
-## Project Structure
-
-```
-src/
-├── controllers/     # Request handlers
-├── middleware/      # Express middleware
-├── models/         # Data models (Prisma schema)
-├── routes/         # API route definitions
-├── services/       # Business logic
-├── utils/          # Utility functions
-├── validations/    # Request validation schemas
-├── app.ts          # Express app configuration
-├── index.ts        # Server entry point
-└── types/          # TypeScript type definitions
-```
-
-## Available Scripts
-
-- `npm run dev`: Start development server with hot reload
-- `npm run build`: Build for production
-- `npm start`: Start production server
-- `npm test`: Run tests
-- `npm run test:watch`: Run tests in watch mode
-- `npm run test:coverage`: Run tests with coverage
-- `npm run lint`: Run ESLint
-- `npm run lint:fix`: Fix ESLint issues
-- `npm run db:generate`: Generate Prisma client
-- `npm run db:migrate`: Run database migrations
-- `npm run db:seed`: Seed the database
-- `npm run db:studio`: Open Prisma Studio
-- `npm run db:reset`: Reset the database
-
-## API Endpoints
+## 🔌 API Endpoints
 
 ### Authentication
 - `POST /api/auth/register` - User registration
 - `POST /api/auth/login` - User login
 - `POST /api/auth/refresh` - Refresh access token
 - `POST /api/auth/logout` - User logout
-- `POST /api/auth/forgot-password` - Forgot password
-- `POST /api/auth/reset-password` - Reset password
-
-### Users
-- `GET /api/users/profile` - Get user profile
-- `PUT /api/users/profile` - Update user profile
-- `POST /api/users/change-password` - Change password
-- `GET /api/users/addresses` - Get user addresses
-- `POST /api/users/addresses` - Create address
-- `PUT /api/users/addresses/:id` - Update address
-- `DELETE /api/users/addresses/:id` - Delete address
+- `POST /api/auth/forgot-password` - Password reset request
+- `POST /api/auth/reset-password` - Password reset
 
 ### Stores
-- `GET /api/stores` - Get user stores
+- `GET /api/stores` - List stores
 - `POST /api/stores` - Create store
 - `GET /api/stores/:id` - Get store details
 - `PUT /api/stores/:id` - Update store
 - `DELETE /api/stores/:id` - Delete store
 
 ### Products
-- `GET /api/products` - Get store products
+- `GET /api/products` - List products
 - `POST /api/products` - Create product
 - `GET /api/products/:id` - Get product details
 - `PUT /api/products/:id` - Update product
 - `DELETE /api/products/:id` - Delete product
 
 ### Orders
-- `GET /api/orders` - Get store orders
+- `GET /api/orders` - List orders
 - `POST /api/orders` - Create order
 - `GET /api/orders/:id` - Get order details
-- `PUT /api/orders/:id` - Update order status
+- `PUT /api/orders/:id` - Update order
+- `POST /api/orders/:id/cancel` - Cancel order
+
+### Customers
+- `GET /api/customers` - List customers
+- `POST /api/customers` - Create customer
+- `GET /api/customers/:id` - Get customer details
+- `PUT /api/customers/:id` - Update customer
+- `DELETE /api/customers/:id` - Delete customer
 
 ### Payments
-- `POST /api/payments/create-intent` - Create payment intent
+- `POST /api/payments/intent` - Create payment intent
 - `POST /api/payments/confirm` - Confirm payment
-- `POST /api/payments/refund` - Process refund
+- `POST /api/payments/:id/refund` - Process refund
 
 ### Shipping
 - `GET /api/shipping/methods` - Get shipping methods
 - `POST /api/shipping/calculate` - Calculate shipping costs
-- `GET /api/shipping/track/:trackingNumber` - Track shipment
+- `GET /api/shipping/track/:number` - Track shipment
 
 ### Marketing
-- `GET /api/marketing/campaigns` - Get campaigns
+- `GET /api/marketing/campaigns` - List campaigns
 - `POST /api/marketing/campaigns` - Create campaign
-- `GET /api/marketing/email-templates` - Get email templates
-- `POST /api/marketing/subscribers` - Add subscriber
+- `GET /api/marketing/email-templates` - List email templates
 
 ### Analytics
-- `GET /api/analytics/dashboard` - Get store analytics
-- `GET /api/analytics/revenue` - Get revenue analytics
-- `GET /api/analytics/products` - Get product analytics
+- `GET /api/analytics/sales` - Sales analytics
+- `GET /api/analytics/customers` - Customer analytics
+- `GET /api/analytics/products` - Product analytics
 
-### Admin (Admin only)
-- `GET /api/admin/dashboard` - Get admin dashboard
-- `GET /api/admin/users` - Get all users
-- `GET /api/admin/stores` - Get all stores
-- `GET /api/admin/orders` - Get all orders
-- `GET /api/admin/analytics` - Get platform analytics
+## 🔐 Authentication
 
-### Webhooks
-- `POST /api/webhooks/stripe` - Stripe webhooks
-- `POST /api/webhooks/paypal` - PayPal webhooks
-- `POST /api/webhooks/shipping` - Shipping webhooks
-- `POST /api/webhooks/email` - Email webhooks
+The API uses JWT-based authentication with the following flow:
 
-## Database Schema
+1. **Login**: User provides credentials and receives access + refresh tokens
+2. **Access**: Include `Authorization: Bearer <token>` header for protected routes
+3. **Refresh**: Use refresh token to get new access token when expired
+4. **Logout**: Invalidate refresh token
 
-The database schema is defined in `prisma/schema.prisma` and includes:
+### Role-based Access Control
 
-- **Users**: User accounts and profiles
-- **Stores**: Multi-tenant stores
-- **Products**: Product catalog with variants
-- **Orders**: Order management
-- **Payments**: Payment processing
-- **Customers**: Customer management
-- **Categories**: Product categorization
-- **Reviews**: Product reviews
-- **Notifications**: User notifications
-- **Addresses**: User and store addresses
+- **ADMIN**: Full platform access
+- **STORE_OWNER**: Store-specific access
+- **CUSTOMER**: Limited access to own data
 
-## Testing
+## 📊 Validation
 
-Run the test suite:
+Request validation is handled using `express-validator` with centralized validation schemas:
+
+```typescript
+import { validateRequest } from '@/validations';
+import { productValidation } from '@/validations/productValidation';
+
+router.post('/products', 
+  validateRequest(productValidation.createProduct), 
+  productController.createProduct
+);
+```
+
+## 🧪 Testing
 
 ```bash
 # Run all tests
@@ -233,54 +237,83 @@ npm run test:watch
 
 # Run tests with coverage
 npm run test:coverage
+
+# Run specific test file
+npm test -- productService.test.ts
 ```
 
-## Deployment
+## 📚 API Documentation
 
-### Production Build
+API documentation is automatically generated using Swagger/OpenAPI:
 
-```bash
-# Build the application
-npm run build
+- **Development**: http://localhost:4000/api-docs
+- **OpenAPI JSON**: http://localhost:4000/api-docs.json
 
-# Start production server
-npm start
-```
+## 🔄 Webhooks
+
+The application supports webhooks for:
+
+- **Stripe**: Payment events
+- **Shipping**: Tracking updates
+- **Email**: Delivery status
+- **Custom**: Store-specific events
+
+## 📈 Monitoring
+
+- **Health Check**: `GET /health`
+- **Logging**: Winston with daily rotation
+- **Error Tracking**: Centralized error handling
+- **Performance**: Request logging and metrics
+
+## 🚀 Deployment
 
 ### Docker
 
 ```bash
-# Build Docker image
+# Build image
 docker build -t egify-backend .
 
 # Run container
 docker run -p 4000:4000 egify-backend
 ```
 
-### Environment Variables for Production
+### Environment Variables
 
-Make sure to set the following environment variables in production:
+Ensure all required environment variables are set in production:
 
-- `NODE_ENV=production`
-- `DATABASE_URL`: Production database URL
-- `REDIS_URL`: Production Redis URL
-- `JWT_SECRET`: Strong secret key
-- `AWS_*`: Production AWS credentials
-- `STRIPE_*`: Production Stripe keys
+```bash
+NODE_ENV=production
+DATABASE_URL=...
+REDIS_URL=...
+JWT_SECRET=...
+# ... other variables
+```
 
-## Contributing
+## 🤝 Contributing
 
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
-4. Add tests for new functionality
-5. Run the test suite
-6. Submit a pull request
+4. Add tests
+5. Submit a pull request
 
-## License
+## 📄 License
 
-This project is licensed under the MIT License.
+MIT License - see LICENSE file for details
 
-## Support
+## 🆘 Support
 
-For support and questions, please contact the development team or create an issue in the repository. 
+For support and questions:
+
+- **Documentation**: Check the API docs at `/api-docs`
+- **Issues**: Create an issue in the repository
+- **Email**: support@egify.com
+
+## 🔄 Changelog
+
+### v1.0.0
+- Initial release
+- Multi-tenant e-commerce platform
+- Complete API with authentication, products, orders, payments
+- Real-time updates with Socket.IO
+- Comprehensive validation and error handling 
