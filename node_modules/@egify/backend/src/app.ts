@@ -24,17 +24,17 @@ import { requestLogger } from '@/middleware/requestLogger';
 import { securityMiddleware } from '@/middleware/security';
 
 // Import routes
-import authRoutes from '@/routes/auth';
-import userRoutes from '@/routes/users';
-import storeRoutes from '@/routes/stores';
-import productRoutes from '@/routes/products';
-import orderRoutes from '@/routes/orders';
-import paymentRoutes from '@/routes/payments';
-import shippingRoutes from '@/routes/shipping';
-import analyticsRoutes from '@/routes/analytics';
-import marketingRoutes from '@/routes/marketing';
-import webhookRoutes from '@/routes/webhooks';
-import adminRoutes from '@/routes/admin';
+import authRoutes from '@/routes/authRoutes';
+import userRoutes from '@/routes/userRoutes';
+import storeRoutes from '@/routes/storeRoutes';
+import productRoutes from '@/routes/productRoutes';
+import orderRoutes from '@/routes/orderRoutes';
+import paymentRoutes from '@/routes/paymentRoutes';
+import shippingRoutes from '@/routes/shippingRoutes';
+import analyticsRoutes from '@/routes/analyticsRoutes';
+import marketingRoutes from '@/routes/marketingRoutes';
+import webhookRoutes from '@/routes/webhookRoutes';
+import adminRoutes from '@/routes/adminRoutes';
 
 // Import types
 import { Request, Response, NextFunction } from 'express';

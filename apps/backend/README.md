@@ -1,306 +1,286 @@
 # Egify Backend API
 
-A robust, scalable backend API for the Egify e-commerce platform built with Node.js, Express, TypeScript, and PostgreSQL.
+A comprehensive SaaS e-commerce platform backend built with Node.js, Express, TypeScript, and Prisma.
 
-## 🚀 Features
+## Features
 
-- **Authentication & Authorization**: JWT-based authentication with role-based access control
-- **E-commerce Management**: Complete store, product, order, and customer management
-- **Real-time Notifications**: Socket.IO integration for real-time updates
-- **File Upload**: AWS S3 integration for file storage
-- **Payment Processing**: Stripe integration for payment processing
-- **Search & Analytics**: Advanced search functionality and business analytics
-- **Email Notifications**: Transactional email system
-- **API Documentation**: Swagger/OpenAPI documentation
-- **Testing**: Comprehensive test suite with Jest
-- **Docker Support**: Containerized deployment with Docker Compose
+- **User Management**: Authentication, authorization, and user profiles
+- **Store Management**: Multi-tenant store creation and management
+- **Product Management**: Product catalog with variants and inventory
+- **Order Management**: Complete order lifecycle management
+- **Payment Processing**: Stripe and PayPal integration
+- **Shipping**: Shipping zones, rates, and tracking
+- **Marketing**: Email campaigns, templates, and subscriber management
+- **Analytics**: Comprehensive analytics and reporting
+- **Admin Panel**: Platform administration and monitoring
+- **Webhooks**: External service integrations
+- **Real-time Updates**: Socket.IO for real-time notifications
 
-## 🛠 Tech Stack
+## Tech Stack
 
 - **Runtime**: Node.js 18+
 - **Framework**: Express.js
 - **Language**: TypeScript
 - **Database**: PostgreSQL with Prisma ORM
 - **Cache**: Redis
-- **Search**: Elasticsearch
-- **Authentication**: JWT with Passport.js
-- **File Storage**: AWS S3
-- **Payments**: Stripe
+- **Authentication**: JWT with refresh tokens
+- **File Upload**: AWS S3
+- **Payments**: Stripe, PayPal
 - **Email**: Nodemailer
+- **Search**: Elasticsearch
 - **Real-time**: Socket.IO
-- **Testing**: Jest
 - **Documentation**: Swagger/OpenAPI
+- **Testing**: Jest
+- **Logging**: Winston
 
-## 📋 Prerequisites
+## Prerequisites
 
-- Node.js 18+ 
-- PostgreSQL 15+
-- Redis 7+
-- Docker & Docker Compose (optional)
+- Node.js 18+
+- PostgreSQL 12+
+- Redis 6+
+- AWS S3 (for file uploads)
+- Elasticsearch 7+ (optional, for search)
 
-## 🚀 Quick Start
-
-### Using Docker (Recommended)
+## Installation
 
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
-   cd egify-platform/apps/backend
+   cd apps/backend
    ```
 
-2. **Set up environment variables**
-   ```bash
-   cp env.example .env
-   # Edit .env with your configuration
-   ```
-
-3. **Start services with Docker Compose**
-   ```bash
-   docker-compose up -d
-   ```
-
-4. **Run migrations and seed data**
-   ```bash
-   docker-compose exec backend npm run migrate
-   docker-compose exec backend npm run seed
-   ```
-
-5. **Access the API**
-   - API: http://localhost:5000
-   - Health Check: http://localhost:5000/health
-   - API Documentation: http://localhost:5000/api-docs
-
-### Manual Setup
-
-1. **Install dependencies**
+2. **Install dependencies**
    ```bash
    npm install
    ```
 
-2. **Set up environment variables**
+3. **Set up environment variables**
    ```bash
    cp env.example .env
    # Edit .env with your configuration
    ```
 
-3. **Set up database**
+4. **Set up the database**
    ```bash
-   # Create PostgreSQL database
-   createdb egify_db
+   # Generate Prisma client
+   npm run db:generate
    
    # Run migrations
-   npm run migrate
+   npm run db:migrate
    
-   # Seed data
-   npm run seed
+   # Seed the database (optional)
+   npm run db:seed
    ```
 
-4. **Start development server**
+5. **Start the development server**
    ```bash
    npm run dev
    ```
 
-## 📁 Project Structure
+## Environment Variables
+
+Copy `env.example` to `.env` and configure the following variables:
+
+### Required
+- `DATABASE_URL`: PostgreSQL connection string
+- `JWT_SECRET`: Secret key for JWT tokens
+- `REDIS_URL`: Redis connection string
+
+### Optional
+- `PORT`: Server port (default: 4000)
+- `NODE_ENV`: Environment (development/production)
+- `AWS_*`: AWS S3 configuration for file uploads
+- `STRIPE_*`: Stripe payment configuration
+- `SMTP_*`: Email configuration
+- `ELASTICSEARCH_URL`: Elasticsearch connection
+
+## API Documentation
+
+Once the server is running, you can access the API documentation at:
+- Swagger UI: `http://localhost:4000/api-docs`
+- OpenAPI JSON: `http://localhost:4000/api-docs.json`
+
+## Project Structure
 
 ```
 src/
-├── controllers/          # HTTP request handlers
-├── middleware/          # Express middleware
-├── models/             # Data models (Prisma schema)
-├── routes/             # API route definitions
-├── services/           # Business logic layer
-├── types/              # TypeScript type definitions
-├── utils/              # Utility functions
-├── tests/              # Test files
-└── index.ts            # Application entry point
+├── controllers/     # Request handlers
+├── middleware/      # Express middleware
+├── models/         # Data models (Prisma schema)
+├── routes/         # API route definitions
+├── services/       # Business logic
+├── utils/          # Utility functions
+├── validations/    # Request validation schemas
+├── app.ts          # Express app configuration
+├── index.ts        # Server entry point
+└── types/          # TypeScript type definitions
 ```
 
-## 🔧 Configuration
+## Available Scripts
 
-### Environment Variables
+- `npm run dev`: Start development server with hot reload
+- `npm run build`: Build for production
+- `npm start`: Start production server
+- `npm test`: Run tests
+- `npm run test:watch`: Run tests in watch mode
+- `npm run test:coverage`: Run tests with coverage
+- `npm run lint`: Run ESLint
+- `npm run lint:fix`: Fix ESLint issues
+- `npm run db:generate`: Generate Prisma client
+- `npm run db:migrate`: Run database migrations
+- `npm run db:seed`: Seed the database
+- `npm run db:studio`: Open Prisma Studio
+- `npm run db:reset`: Reset the database
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `NODE_ENV` | Application environment | `development` |
-| `PORT` | Server port | `5000` |
-| `DATABASE_URL` | PostgreSQL connection string | - |
-| `REDIS_URL` | Redis connection string | `redis://localhost:6379` |
-| `JWT_SECRET` | JWT signing secret | - |
-| `SMTP_HOST` | SMTP server host | - |
-| `AWS_ACCESS_KEY_ID` | AWS access key | - |
-| `STRIPE_SECRET_KEY` | Stripe secret key | - |
-
-### Database Schema
-
-The application uses Prisma ORM with the following main entities:
-
-- **Users**: Authentication and user management
-- **Stores**: E-commerce store management
-- **Products**: Product catalog with variants
-- **Orders**: Order management and tracking
-- **Customers**: Customer management
-- **Categories**: Product categorization
-- **Reviews**: Product reviews and ratings
-- **Payments**: Payment processing records
-
-## 🔌 API Endpoints
+## API Endpoints
 
 ### Authentication
-- `POST /api/v1/auth/register` - User registration
-- `POST /api/v1/auth/login` - User login
-- `POST /api/v1/auth/refresh` - Refresh access token
-- `POST /api/v1/auth/logout` - User logout
-- `GET /api/v1/auth/me` - Get current user profile
+- `POST /api/auth/register` - User registration
+- `POST /api/auth/login` - User login
+- `POST /api/auth/refresh` - Refresh access token
+- `POST /api/auth/logout` - User logout
+- `POST /api/auth/forgot-password` - Forgot password
+- `POST /api/auth/reset-password` - Reset password
+
+### Users
+- `GET /api/users/profile` - Get user profile
+- `PUT /api/users/profile` - Update user profile
+- `POST /api/users/change-password` - Change password
+- `GET /api/users/addresses` - Get user addresses
+- `POST /api/users/addresses` - Create address
+- `PUT /api/users/addresses/:id` - Update address
+- `DELETE /api/users/addresses/:id` - Delete address
 
 ### Stores
-- `GET /api/v1/stores` - List user's stores
-- `POST /api/v1/stores` - Create new store
-- `GET /api/v1/stores/:id` - Get store details
-- `PUT /api/v1/stores/:id` - Update store
-- `DELETE /api/v1/stores/:id` - Delete store
+- `GET /api/stores` - Get user stores
+- `POST /api/stores` - Create store
+- `GET /api/stores/:id` - Get store details
+- `PUT /api/stores/:id` - Update store
+- `DELETE /api/stores/:id` - Delete store
 
 ### Products
-- `GET /api/v1/products` - List products
-- `POST /api/v1/products` - Create product
-- `GET /api/v1/products/:id` - Get product details
-- `PUT /api/v1/products/:id` - Update product
-- `DELETE /api/v1/products/:id` - Delete product
+- `GET /api/products` - Get store products
+- `POST /api/products` - Create product
+- `GET /api/products/:id` - Get product details
+- `PUT /api/products/:id` - Update product
+- `DELETE /api/products/:id` - Delete product
 
 ### Orders
-- `GET /api/v1/orders` - List orders
-- `POST /api/v1/orders` - Create order
-- `GET /api/v1/orders/:id` - Get order details
-- `PUT /api/v1/orders/:id/status` - Update order status
+- `GET /api/orders` - Get store orders
+- `POST /api/orders` - Create order
+- `GET /api/orders/:id` - Get order details
+- `PUT /api/orders/:id` - Update order status
 
-### Customers
-- `GET /api/v1/customers` - List customers
-- `POST /api/v1/customers` - Create customer
-- `GET /api/v1/customers/:id` - Get customer details
-- `PUT /api/v1/customers/:id` - Update customer
+### Payments
+- `POST /api/payments/create-intent` - Create payment intent
+- `POST /api/payments/confirm` - Confirm payment
+- `POST /api/payments/refund` - Process refund
 
-## 🧪 Testing
+### Shipping
+- `GET /api/shipping/methods` - Get shipping methods
+- `POST /api/shipping/calculate` - Calculate shipping costs
+- `GET /api/shipping/track/:trackingNumber` - Track shipment
 
-### Run Tests
+### Marketing
+- `GET /api/marketing/campaigns` - Get campaigns
+- `POST /api/marketing/campaigns` - Create campaign
+- `GET /api/marketing/email-templates` - Get email templates
+- `POST /api/marketing/subscribers` - Add subscriber
+
+### Analytics
+- `GET /api/analytics/dashboard` - Get store analytics
+- `GET /api/analytics/revenue` - Get revenue analytics
+- `GET /api/analytics/products` - Get product analytics
+
+### Admin (Admin only)
+- `GET /api/admin/dashboard` - Get admin dashboard
+- `GET /api/admin/users` - Get all users
+- `GET /api/admin/stores` - Get all stores
+- `GET /api/admin/orders` - Get all orders
+- `GET /api/admin/analytics` - Get platform analytics
+
+### Webhooks
+- `POST /api/webhooks/stripe` - Stripe webhooks
+- `POST /api/webhooks/paypal` - PayPal webhooks
+- `POST /api/webhooks/shipping` - Shipping webhooks
+- `POST /api/webhooks/email` - Email webhooks
+
+## Database Schema
+
+The database schema is defined in `prisma/schema.prisma` and includes:
+
+- **Users**: User accounts and profiles
+- **Stores**: Multi-tenant stores
+- **Products**: Product catalog with variants
+- **Orders**: Order management
+- **Payments**: Payment processing
+- **Customers**: Customer management
+- **Categories**: Product categorization
+- **Reviews**: Product reviews
+- **Notifications**: User notifications
+- **Addresses**: User and store addresses
+
+## Testing
+
+Run the test suite:
+
 ```bash
 # Run all tests
 npm test
 
-# Run tests with coverage
-npm run test:coverage
-
 # Run tests in watch mode
 npm run test:watch
 
-# Run specific test file
-npm test -- authService.test.ts
+# Run tests with coverage
+npm run test:coverage
 ```
 
-### Test Structure
-- **Unit Tests**: Test individual functions and methods
-- **Integration Tests**: Test API endpoints and database operations
-- **E2E Tests**: Test complete user workflows
-
-## 📊 Monitoring & Logging
-
-### Logging
-The application uses Winston for structured logging with different levels:
-- `error`: Application errors
-- `warn`: Warning messages
-- `info`: General information
-- `debug`: Debug information
-
-### Health Checks
-- `GET /health` - Basic health check
-- `GET /health/detailed` - Detailed health check with dependencies
-
-## 🔒 Security
-
-### Authentication
-- JWT-based authentication
-- Refresh token rotation
-- Password hashing with bcrypt
-- Role-based access control
-
-### Security Headers
-- Helmet.js for security headers
-- CORS configuration
-- Rate limiting
-- XSS protection
-- CSRF protection
-
-### Input Validation
-- Express-validator for request validation
-- Sanitization of user inputs
-- SQL injection prevention (Prisma ORM)
-
-## 🚀 Deployment
+## Deployment
 
 ### Production Build
+
 ```bash
+# Build the application
 npm run build
+
+# Start production server
+npm start
 ```
 
-### Docker Deployment
+### Docker
+
 ```bash
-# Build production image
+# Build Docker image
 docker build -t egify-backend .
 
-# Run with Docker Compose
-docker-compose -f docker-compose.prod.yml up -d
+# Run container
+docker run -p 4000:4000 egify-backend
 ```
 
-### Environment-Specific Configurations
-- **Development**: Hot reload, detailed logging
-- **Staging**: Production-like environment
-- **Production**: Optimized for performance and security
+### Environment Variables for Production
 
-## 📚 API Documentation
+Make sure to set the following environment variables in production:
 
-### Swagger UI
-Access the interactive API documentation at:
-```
-http://localhost:5000/api-docs
-```
+- `NODE_ENV=production`
+- `DATABASE_URL`: Production database URL
+- `REDIS_URL`: Production Redis URL
+- `JWT_SECRET`: Strong secret key
+- `AWS_*`: Production AWS credentials
+- `STRIPE_*`: Production Stripe keys
 
-### OpenAPI Specification
-Download the OpenAPI specification:
-```
-http://localhost:5000/api-docs/swagger.json
-```
-
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
 4. Add tests for new functionality
-5. Ensure all tests pass
+5. Run the test suite
 6. Submit a pull request
 
-### Code Style
-- Use TypeScript strict mode
-- Follow ESLint configuration
-- Use Prettier for code formatting
-- Write meaningful commit messages
+## License
 
-## 📝 License
+This project is licensed under the MIT License.
 
-This project is licensed under the MIT License - see the [LICENSE](../LICENSE) file for details.
+## Support
 
-## 🆘 Support
-
-For support and questions:
-- Create an issue in the repository
-- Check the API documentation
-- Review the test files for usage examples
-
-## 🔄 Changelog
-
-### v1.0.0
-- Initial release
-- Complete e-commerce functionality
-- Authentication and authorization
-- Real-time notifications
-- File upload support
-- Payment processing
-- Search and analytics 
+For support and questions, please contact the development team or create an issue in the repository. 

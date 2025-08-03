@@ -5,6 +5,7 @@ import {
   validatePaymentIntent,
   validateRefundRequest
 } from '@/middleware/validation';
+import { paymentService } from '@/services/paymentService';
 
 export class PaymentController {
   /**
@@ -14,16 +15,13 @@ export class PaymentController {
   createPaymentIntent = asyncHandler(async (req: Request, res: Response) => {
     const { amount, currency, orderId, paymentMethod, customerId } = req.body;
     
-    // TODO: Implement Stripe payment intent creation
-    // This would integrate with the payment service
-    
-    const paymentIntent = {
-      id: 'pi_' + Math.random().toString(36).substr(2, 9),
+    const paymentIntent = await paymentService.createPaymentIntent({
       amount,
       currency,
-      status: 'requires_payment_method',
-      client_secret: 'pi_' + Math.random().toString(36).substr(2, 9) + '_secret_' + Math.random().toString(36).substr(2, 9)
-    };
+      orderId,
+      customerId,
+      paymentMethod,
+    });
     
     res.status(200).json({
       success: true,
@@ -38,11 +36,12 @@ export class PaymentController {
   confirmPayment = asyncHandler(async (req: Request, res: Response) => {
     const { paymentIntentId, paymentMethodId } = req.body;
     
-    // TODO: Implement payment confirmation logic
+    const paymentIntent = await paymentService.confirmPaymentIntent(paymentIntentId, paymentMethodId);
     
     res.status(200).json({
       success: true,
-      message: 'Payment confirmed successfully'
+      message: 'Payment confirmed successfully',
+      data: paymentIntent
     });
   });
 
@@ -53,14 +52,11 @@ export class PaymentController {
   processRefund = asyncHandler(async (req: Request, res: Response) => {
     const { paymentIntentId, amount, reason } = req.body;
     
-    // TODO: Implement refund processing
-    
-    const refund = {
-      id: 're_' + Math.random().toString(36).substr(2, 9),
+    const refund = await paymentService.processRefund({
+      paymentIntentId,
       amount,
       reason,
-      status: 'succeeded'
-    };
+    });
     
     res.status(200).json({
       success: true,
@@ -76,20 +72,7 @@ export class PaymentController {
   getPaymentMethods = asyncHandler(async (req: Request, res: Response) => {
     const customerId = req.user?.id;
     
-    // TODO: Implement payment methods retrieval
-    
-    const paymentMethods = [
-      {
-        id: 'pm_' + Math.random().toString(36).substr(2, 9),
-        type: 'card',
-        card: {
-          brand: 'visa',
-          last4: '4242',
-          exp_month: 12,
-          exp_year: 2025
-        }
-      }
-    ];
+    const paymentMethods = await paymentService.getPaymentMethods(customerId);
     
     res.status(200).json({
       success: true,
@@ -105,11 +88,12 @@ export class PaymentController {
     const customerId = req.user?.id;
     const { paymentMethodId } = req.body;
     
-    // TODO: Implement payment method addition
+    const paymentMethod = await paymentService.addPaymentMethod(customerId, paymentMethodId);
     
     res.status(200).json({
       success: true,
-      message: 'Payment method added successfully'
+      message: 'Payment method added successfully',
+      data: paymentMethod
     });
   });
 
@@ -121,11 +105,12 @@ export class PaymentController {
     const customerId = req.user?.id;
     const paymentMethodId = req.params.id;
     
-    // TODO: Implement payment method removal
+    const paymentMethod = await paymentService.removePaymentMethod(paymentMethodId);
     
     res.status(200).json({
       success: true,
-      message: 'Payment method removed successfully'
+      message: 'Payment method removed successfully',
+      data: paymentMethod
     });
   });
 
@@ -137,29 +122,15 @@ export class PaymentController {
     const customerId = req.user?.id;
     const { page = 1, limit = 10 } = req.query;
     
-    // TODO: Implement payment history retrieval
-    
-    const payments = [
-      {
-        id: 'pi_' + Math.random().toString(36).substr(2, 9),
-        amount: 2500,
-        currency: 'usd',
-        status: 'succeeded',
-        created: new Date().toISOString(),
-        orderId: 'ord_' + Math.random().toString(36).substr(2, 9)
-      }
-    ];
+    const result = await paymentService.getPaymentHistory(
+      customerId,
+      Number(page),
+      Number(limit)
+    );
     
     res.status(200).json({
       success: true,
-      data: {
-        payments,
-        pagination: {
-          page: Number(page),
-          limit: Number(limit),
-          total: 1
-        }
-      }
+      data: result
     });
   });
 
@@ -168,14 +139,19 @@ export class PaymentController {
    * POST /api/payments/webhook
    */
   handleWebhook = asyncHandler(async (req: Request, res: Response) => {
-    const sig = req.headers['stripe-signature'];
-    const event = req.body;
+    const sig = req.headers['stripe-signature'] as string;
+    const payload = JSON.stringify(req.body);
     
-    // TODO: Implement webhook signature verification and event handling
-    
-    logger.info('Payment webhook received:', event.type);
-    
-    res.status(200).json({ received: true });
+    try {
+      const event = paymentService.verifyWebhookSignature(payload, sig);
+      await paymentService.handleWebhookEvent(event);
+      
+      logger.info('Payment webhook processed successfully:', event.type);
+      res.status(200).json({ received: true });
+    } catch (error) {
+      logger.error('Webhook error:', error);
+      res.status(400).json({ error: 'Webhook signature verification failed' });
+    }
   });
 }
 

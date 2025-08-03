@@ -1,7 +1,5 @@
-import { PrismaClient, ProductStatus } from '@prisma/client';
-import { prisma } from '@/utils/database';
+import { PrismaClient } from '@prisma/client';
 import { logger } from '@/utils/logger';
-import { CustomError } from '@/middleware/errorHandler';
 
 export interface SearchFilters {
   query?: string;
@@ -9,7 +7,7 @@ export interface SearchFilters {
   minPrice?: number;
   maxPrice?: number;
   inStock?: boolean;
-  isFeatured?: boolean;
+  isActive?: boolean;
   tags?: string[];
   sortBy?: 'name' | 'price' | 'createdAt' | 'popularity';
   sortOrder?: 'asc' | 'desc';
@@ -17,71 +15,39 @@ export interface SearchFilters {
   limit?: number;
 }
 
+export interface CustomerSearchFilters {
+  query?: string;
+  isActive?: boolean;
+  isVerified?: boolean;
+  tags?: string[];
+  sortBy?: 'firstName' | 'lastName' | 'email' | 'createdAt';
+  sortOrder?: 'asc' | 'desc';
+  page?: number;
+  limit?: number;
+}
+
 export interface SearchResult<T> {
-  items: T[];
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
-  hasNext: boolean;
-  hasPrev: boolean;
-}
-
-export interface ProductSearchResult {
-  id: string;
-  name: string;
-  slug: string;
-  description: string;
-  price: number;
-  comparePrice: number;
-  images: Array<{
-    url: string;
-    alt: string;
-  }>;
-  category: {
-    id: string;
-    name: string;
-    slug: string;
+  data: T[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
   };
-  store: {
-    id: string;
-    name: string;
-    slug: string;
-  };
-  isFeatured: boolean;
-  tags: string[];
-  averageRating: number;
-  reviewCount: number;
-  inStock: boolean;
-  createdAt: Date;
-}
-
-export interface StoreSearchResult {
-  id: string;
-  name: string;
-  slug: string;
-  description: string;
-  logo: string;
-  banner: string;
-  status: string;
-  productCount: number;
-  orderCount: number;
-  customerCount: number;
-  averageRating: number;
-  createdAt: Date;
+  filters: SearchFilters | CustomerSearchFilters;
 }
 
 export class SearchService {
   private prisma: PrismaClient;
 
   constructor() {
-    this.prisma = prisma;
+    this.prisma = new PrismaClient();
   }
 
   /**
-   * Search products with filters and pagination
+   * Search products with advanced filtering
    */
-  async searchProducts(storeId: string, filters: SearchFilters = {}): Promise<SearchResult<ProductSearchResult>> {
+  async searchProducts(storeId: string, filters: SearchFilters = {}): Promise<SearchResult<any>> {
     try {
       const {
         query,
@@ -89,22 +55,24 @@ export class SearchService {
         minPrice,
         maxPrice,
         inStock,
-        isFeatured,
+        isActive = true,
         tags,
-        sortBy = 'createdAt',
-        sortOrder = 'desc',
+        sortBy = 'name',
+        sortOrder = 'asc',
         page = 1,
         limit = 20
       } = filters;
 
+      const skip = (page - 1) * limit;
+
       // Build where clause
       const whereClause: any = {
         storeId,
-        isActive: true,
-        status: ProductStatus.ACTIVE
+        isActive,
+        deletedAt: null
       };
 
-      // Text search
+      // Add search query
       if (query) {
         whereClause.OR = [
           { name: { contains: query, mode: 'insensitive' } },
@@ -114,90 +82,70 @@ export class SearchService {
         ];
       }
 
-      // Category filter
+      // Add category filter
       if (categoryId) {
         whereClause.categoryId = categoryId;
       }
 
-      // Price range filter
+      // Add price filters
       if (minPrice !== undefined || maxPrice !== undefined) {
         whereClause.price = {};
         if (minPrice !== undefined) whereClause.price.gte = minPrice;
         if (maxPrice !== undefined) whereClause.price.lte = maxPrice;
       }
 
-      // Featured filter
-      if (isFeatured !== undefined) {
-        whereClause.isFeatured = isFeatured;
-      }
-
-      // Tags filter
+      // Add tags filter
       if (tags && tags.length > 0) {
         whereClause.tags = { hasSome: tags };
       }
 
-      // Stock filter
+      // Add stock filter
       if (inStock !== undefined) {
-        if (inStock) {
-          whereClause.variants = {
-            some: {
-              inventory: { gt: 0 }
-            }
-          };
-        } else {
-          whereClause.variants = {
-            every: {
-              inventory: 0
-            }
-          };
-        }
+        whereClause.variants = {
+          some: {
+            inventory: inStock ? { gt: 0 } : { equals: 0 }
+          }
+        };
       }
 
       // Build order by clause
       const orderByClause: any = {};
-      if (sortBy === 'popularity') {
-        // For popularity, we'll order by review count (simplified)
-        orderByClause.reviews = { _count: sortOrder };
-      } else {
-        orderByClause[sortBy] = sortOrder;
+      switch (sortBy) {
+        case 'price':
+          orderByClause.price = sortOrder;
+          break;
+        case 'createdAt':
+          orderByClause.createdAt = sortOrder;
+          break;
+        case 'popularity':
+          // TODO: Implement popularity-based sorting
+          orderByClause.createdAt = 'desc';
+          break;
+        default:
+          orderByClause.name = sortOrder;
       }
 
-      // Calculate pagination
-      const skip = (page - 1) * limit;
-
-      // Get products with related data
+      // Execute search
       const [products, total] = await Promise.all([
         this.prisma.product.findMany({
           where: whereClause,
           include: {
             category: {
-              select: {
-                id: true,
-                name: true,
-                slug: true
-              }
+              select: { name: true, slug: true }
             },
-            store: {
+            variants: {
+              where: { isActive: true },
               select: {
                 id: true,
                 name: true,
-                slug: true
+                price: true,
+                inventory: true,
+                attributes: true
               }
             },
             images: {
               where: { isPrimary: true },
-              select: {
-                url: true,
-                alt: true
-              },
-              take: 1
-            },
-            variants: {
-              where: { isActive: true },
-              select: { inventory: true }
-            },
-            reviews: {
-              select: { rating: true }
+              select: { url: true, alt: true }
             },
             _count: {
               select: { reviews: true }
@@ -210,412 +158,372 @@ export class SearchService {
         this.prisma.product.count({ where: whereClause })
       ]);
 
-      // Transform results
-      const transformedProducts: ProductSearchResult[] = products.map(product => {
-        const totalInventory = product.variants.reduce((sum, variant) => sum + variant.inventory, 0);
-        const averageRating = product.reviews.length > 0
-          ? product.reviews.reduce((sum, review) => sum + review.rating, 0) / product.reviews.length
-          : 0;
-
-        return {
-          id: product.id,
-          name: product.name,
-          slug: product.slug,
-          description: product.description || '',
-          price: product.price.toNumber(),
-          comparePrice: product.comparePrice?.toNumber() || 0,
-          images: product.images.map(img => ({
-            url: img.url,
-            alt: img.alt || ''
-          })),
-          category: product.category ? {
-            id: product.category.id,
-            name: product.category.name,
-            slug: product.category.slug
-          } : null,
-          store: {
-            id: product.store.id,
-            name: product.store.name,
-            slug: product.store.slug
-          },
-          isFeatured: product.isFeatured,
-          tags: product.tags,
-          averageRating: Math.round(averageRating * 10) / 10,
-          reviewCount: product._count.reviews,
-          inStock: totalInventory > 0,
-          createdAt: product.createdAt
-        };
-      });
-
-      const totalPages = Math.ceil(total / limit);
+      // Process results
+      const processedProducts = products.map(product => ({
+        ...product,
+        averageRating: this.calculateAverageRating(product.reviews || []),
+        reviewCount: product._count.reviews,
+        primaryImage: product.images[0]?.url || null,
+        minPrice: Math.min(...product.variants.map(v => Number(v.price))),
+        maxPrice: Math.max(...product.variants.map(v => Number(v.price))),
+        totalStock: product.variants.reduce((sum, v) => sum + v.inventory, 0)
+      }));
 
       return {
-        items: transformedProducts,
-        total,
-        page,
-        limit,
-        totalPages,
-        hasNext: page < totalPages,
-        hasPrev: page > 1
+        data: processedProducts,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit)
+        },
+        filters
       };
     } catch (error) {
       logger.error('Error searching products:', error);
-      throw new CustomError('Failed to search products', 500);
+      throw error;
     }
   }
 
   /**
-   * Search stores with filters and pagination
+   * Search customers with filtering
    */
-  async searchStores(filters: SearchFilters = {}): Promise<SearchResult<StoreSearchResult>> {
+  async searchCustomers(storeId: string, filters: CustomerSearchFilters = {}): Promise<SearchResult<any>> {
     try {
       const {
         query,
-        sortBy = 'createdAt',
-        sortOrder = 'desc',
+        isActive = true,
+        isVerified,
+        tags,
+        sortBy = 'firstName',
+        sortOrder = 'asc',
         page = 1,
         limit = 20
       } = filters;
 
+      const skip = (page - 1) * limit;
+
       // Build where clause
       const whereClause: any = {
-        isActive: true,
-        status: 'ACTIVE'
+        storeId,
+        isActive,
+        deletedAt: null
       };
 
-      // Text search
+      // Add search query
       if (query) {
         whereClause.OR = [
-          { name: { contains: query, mode: 'insensitive' } },
-          { description: { contains: query, mode: 'insensitive' } },
-          { slug: { contains: query, mode: 'insensitive' } }
+          { firstName: { contains: query, mode: 'insensitive' } },
+          { lastName: { contains: query, mode: 'insensitive' } },
+          { email: { contains: query, mode: 'insensitive' } },
+          { phone: { contains: query, mode: 'insensitive' } }
         ];
+      }
+
+      // Add verification filter
+      if (isVerified !== undefined) {
+        whereClause.isVerified = isVerified;
+      }
+
+      // Add tags filter
+      if (tags && tags.length > 0) {
+        whereClause.tags = { hasSome: tags };
       }
 
       // Build order by clause
       const orderByClause: any = {};
-      if (sortBy === 'popularity') {
-        // For popularity, we'll order by order count
-        orderByClause.orders = { _count: sortOrder };
-      } else {
-        orderByClause[sortBy] = sortOrder;
+      switch (sortBy) {
+        case 'lastName':
+          orderByClause.lastName = sortOrder;
+          break;
+        case 'email':
+          orderByClause.email = sortOrder;
+          break;
+        case 'createdAt':
+          orderByClause.createdAt = sortOrder;
+          break;
+        default:
+          orderByClause.firstName = sortOrder;
       }
 
-      // Calculate pagination
-      const skip = (page - 1) * limit;
-
-      // Get stores with related data
-      const [stores, total] = await Promise.all([
-        this.prisma.store.findMany({
+      // Execute search
+      const [customers, total] = await Promise.all([
+        this.prisma.customer.findMany({
           where: whereClause,
           include: {
+            address: true,
             _count: {
-              select: {
-                products: true,
-                orders: true,
-                customers: true
-              }
+              select: { orders: true, reviews: true }
             }
           },
           orderBy: orderByClause,
           skip,
           take: limit
         }),
-        this.prisma.store.count({ where: whereClause })
+        this.prisma.customer.count({ where: whereClause })
       ]);
 
-      // Transform results
-      const transformedStores: StoreSearchResult[] = stores.map(store => ({
-        id: store.id,
-        name: store.name,
-        slug: store.slug,
-        description: store.description || '',
-        logo: store.logo || '',
-        banner: store.banner || '',
-        status: store.status,
-        productCount: store._count.products,
-        orderCount: store._count.orders,
-        customerCount: store._count.customers,
-        averageRating: 0, // TODO: Calculate from reviews
-        createdAt: store.createdAt
+      // Process results
+      const processedCustomers = customers.map(customer => ({
+        ...customer,
+        fullName: `${customer.firstName} ${customer.lastName}`,
+        orderCount: customer._count.orders,
+        reviewCount: customer._count.reviews
       }));
 
-      const totalPages = Math.ceil(total / limit);
-
       return {
-        items: transformedStores,
-        total,
-        page,
-        limit,
-        totalPages,
-        hasNext: page < totalPages,
-        hasPrev: page > 1
+        data: processedCustomers,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit)
+        },
+        filters
       };
     } catch (error) {
-      logger.error('Error searching stores:', error);
-      throw new CustomError('Failed to search stores', 500);
+      logger.error('Error searching customers:', error);
+      throw error;
     }
   }
 
   /**
-   * Get search suggestions based on query
+   * Search orders with filtering
    */
-  async getSearchSuggestions(query: string, storeId?: string): Promise<{
-    products: Array<{ id: string; name: string; slug: string }>;
-    categories: Array<{ id: string; name: string; slug: string }>;
-    tags: string[];
-  }> {
+  async searchOrders(storeId: string, filters: any = {}): Promise<SearchResult<any>> {
     try {
-      const searchQuery = {
-        contains: query,
-        mode: 'insensitive' as const
+      const {
+        query,
+        status,
+        paymentStatus,
+        minTotal,
+        maxTotal,
+        startDate,
+        endDate,
+        sortBy = 'createdAt',
+        sortOrder = 'desc',
+        page = 1,
+        limit = 20
+      } = filters;
+
+      const skip = (page - 1) * limit;
+
+      // Build where clause
+      const whereClause: any = {
+        storeId
       };
 
-      const [products, categories] = await Promise.all([
-        this.prisma.product.findMany({
-          where: {
-            ...(storeId && { storeId }),
-            isActive: true,
-            status: ProductStatus.ACTIVE,
-            OR: [
-              { name: searchQuery },
-              { sku: searchQuery }
-            ]
+      // Add search query
+      if (query) {
+        whereClause.OR = [
+          { orderNumber: { contains: query, mode: 'insensitive' } },
+          { customer: { firstName: { contains: query, mode: 'insensitive' } } },
+          { customer: { lastName: { contains: query, mode: 'insensitive' } } },
+          { customer: { email: { contains: query, mode: 'insensitive' } } }
+        ];
+      }
+
+      // Add status filters
+      if (status) whereClause.status = status;
+      if (paymentStatus) whereClause.paymentStatus = paymentStatus;
+
+      // Add total filters
+      if (minTotal !== undefined || maxTotal !== undefined) {
+        whereClause.total = {};
+        if (minTotal !== undefined) whereClause.total.gte = minTotal;
+        if (maxTotal !== undefined) whereClause.total.lte = maxTotal;
+      }
+
+      // Add date filters
+      if (startDate || endDate) {
+        whereClause.createdAt = {};
+        if (startDate) whereClause.createdAt.gte = new Date(startDate);
+        if (endDate) whereClause.createdAt.lte = new Date(endDate);
+      }
+
+      // Build order by clause
+      const orderByClause: any = {};
+      switch (sortBy) {
+        case 'orderNumber':
+          orderByClause.orderNumber = sortOrder;
+          break;
+        case 'total':
+          orderByClause.total = sortOrder;
+          break;
+        case 'status':
+          orderByClause.status = sortOrder;
+          break;
+        default:
+          orderByClause.createdAt = sortOrder;
+      }
+
+      // Execute search
+      const [orders, total] = await Promise.all([
+        this.prisma.order.findMany({
+          where: whereClause,
+          include: {
+            customer: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                phone: true
+              }
+            },
+            items: {
+              include: {
+                product: {
+                  select: { name: true, sku: true }
+                },
+                variant: {
+                  select: { name: true, sku: true }
+                }
+              }
+            },
+            payments: {
+              select: { amount: true, status: true, method: true }
+            }
           },
-          select: {
-            id: true,
-            name: true,
-            slug: true
-          },
-          take: 5
+          orderBy: orderByClause,
+          skip,
+          take: limit
         }),
-        this.prisma.category.findMany({
-          where: {
-            ...(storeId && { storeId }),
-            isActive: true,
-            name: searchQuery
-          },
-          select: {
-            id: true,
-            name: true,
-            slug: true
-          },
-          take: 5
-        })
+        this.prisma.order.count({ where: whereClause })
       ]);
 
-      // Get unique tags from products
-      const productTags = await this.prisma.product.findMany({
-        where: {
-          ...(storeId && { storeId }),
-          isActive: true,
-          status: ProductStatus.ACTIVE,
-          tags: { hasSome: [query] }
-        },
-        select: { tags: true },
-        take: 10
-      });
-
-      const tags = [...new Set(productTags.flatMap(p => p.tags))].slice(0, 5);
-
       return {
-        products,
-        categories,
-        tags
+        data: orders,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit)
+        },
+        filters
       };
     } catch (error) {
-      logger.error('Error getting search suggestions:', error);
-      return {
-        products: [],
-        categories: [],
-        tags: []
-      };
+      logger.error('Error searching orders:', error);
+      throw error;
     }
   }
 
   /**
-   * Get trending products for a store
+   * Get search suggestions for autocomplete
    */
-  async getTrendingProducts(storeId: string, limit: number = 10): Promise<ProductSearchResult[]> {
+  async getSearchSuggestions(storeId: string, query: string, type: 'products' | 'customers' = 'products'): Promise<string[]> {
     try {
-      const products = await this.prisma.product.findMany({
-        where: {
-          storeId,
-          isActive: true,
-          status: ProductStatus.ACTIVE
-        },
-        include: {
-          category: {
-            select: {
-              id: true,
-              name: true,
-              slug: true
-            }
-          },
-          store: {
-            select: {
-              id: true,
-              name: true,
-              slug: true
-            }
-          },
-          images: {
-            where: { isPrimary: true },
-            select: {
-              url: true,
-              alt: true
-            },
-            take: 1
-          },
-          variants: {
-            where: { isActive: true },
-            select: { inventory: true }
-          },
-          reviews: {
-            select: { rating: true }
-          },
-          _count: {
-            select: { reviews: true }
-          }
-        },
-        orderBy: [
-          { isFeatured: 'desc' },
-          { reviews: { _count: 'desc' } },
-          { createdAt: 'desc' }
-        ],
-        take: limit
-      });
+      if (!query || query.length < 2) return [];
 
-      return products.map(product => {
-        const totalInventory = product.variants.reduce((sum, variant) => sum + variant.inventory, 0);
-        const averageRating = product.reviews.length > 0
-          ? product.reviews.reduce((sum, review) => sum + review.rating, 0) / product.reviews.length
-          : 0;
+      const suggestions: string[] = [];
 
-        return {
-          id: product.id,
-          name: product.name,
-          slug: product.slug,
-          description: product.description || '',
-          price: product.price.toNumber(),
-          comparePrice: product.comparePrice?.toNumber() || 0,
-          images: product.images.map(img => ({
-            url: img.url,
-            alt: img.alt || ''
-          })),
-          category: product.category ? {
-            id: product.category.id,
-            name: product.category.name,
-            slug: product.category.slug
-          } : null,
-          store: {
-            id: product.store.id,
-            name: product.store.name,
-            slug: product.store.slug
+      if (type === 'products') {
+        // Get product name suggestions
+        const products = await this.prisma.product.findMany({
+          where: {
+            storeId,
+            isActive: true,
+            name: { contains: query, mode: 'insensitive' }
           },
-          isFeatured: product.isFeatured,
-          tags: product.tags,
-          averageRating: Math.round(averageRating * 10) / 10,
-          reviewCount: product._count.reviews,
-          inStock: totalInventory > 0,
-          createdAt: product.createdAt
-        };
-      });
+          select: { name: true },
+          take: 10
+        });
+
+        suggestions.push(...products.map(p => p.name));
+
+        // Get category suggestions
+        const categories = await this.prisma.category.findMany({
+          where: {
+            storeId,
+            isActive: true,
+            name: { contains: query, mode: 'insensitive' }
+          },
+          select: { name: true },
+          take: 5
+        });
+
+        suggestions.push(...categories.map(c => c.name));
+      } else {
+        // Get customer name suggestions
+        const customers = await this.prisma.customer.findMany({
+          where: {
+            storeId,
+            isActive: true,
+            OR: [
+              { firstName: { contains: query, mode: 'insensitive' } },
+              { lastName: { contains: query, mode: 'insensitive' } },
+              { email: { contains: query, mode: 'insensitive' } }
+            ]
+          },
+          select: { firstName: true, lastName: true, email: true },
+          take: 10
+        });
+
+        customers.forEach(customer => {
+          if (customer.firstName) suggestions.push(customer.firstName);
+          if (customer.lastName) suggestions.push(customer.lastName);
+          if (customer.email) suggestions.push(customer.email);
+        });
+      }
+
+      // Remove duplicates and limit results
+      return [...new Set(suggestions)].slice(0, 10);
     } catch (error) {
-      logger.error('Error getting trending products:', error);
+      logger.error('Error getting search suggestions:', error);
       return [];
     }
   }
 
   /**
-   * Get search filters for a store
+   * Get popular search terms
    */
-  async getSearchFilters(storeId: string): Promise<{
-    categories: Array<{ id: string; name: string; count: number }>;
-    priceRanges: Array<{ min: number; max: number; count: number }>;
-    tags: Array<{ name: string; count: number }>;
-  }> {
+  async getPopularSearchTerms(storeId: string, limit: number = 10): Promise<string[]> {
     try {
-      const [categories, products] = await Promise.all([
-        this.prisma.category.findMany({
-          where: {
-            storeId,
-            isActive: true
-          },
-          include: {
-            _count: {
-              select: {
-                products: {
-                  where: {
-                    isActive: true,
-                    status: ProductStatus.ACTIVE
-                  }
-                }
-              }
-            }
-          }
-        }),
-        this.prisma.product.findMany({
-          where: {
-            storeId,
-            isActive: true,
-            status: ProductStatus.ACTIVE
-          },
-          select: {
-            price: true,
-            tags: true
-          }
-        })
-      ]);
+      // This would typically come from a search analytics table
+      // For now, return some common terms
+      return [
+        'electronics',
+        'clothing',
+        'books',
+        'home',
+        'garden',
+        'sports',
+        'toys',
+        'beauty',
+        'health',
+        'automotive'
+      ].slice(0, limit);
+    } catch (error) {
+      logger.error('Error getting popular search terms:', error);
+      return [];
+    }
+  }
 
-      // Process categories
-      const categoryFilters = categories
-        .filter(cat => cat._count.products > 0)
-        .map(cat => ({
-          id: cat.id,
-          name: cat.name,
-          count: cat._count.products
-        }));
-
-      // Process price ranges
-      const prices = products.map(p => p.price.toNumber()).sort((a, b) => a - b);
-      const minPrice = Math.floor(prices[0] || 0);
-      const maxPrice = Math.ceil(prices[prices.length - 1] || 0);
-      
-      const priceRanges = [
-        { min: 0, max: 50, count: prices.filter(p => p <= 50).length },
-        { min: 50, max: 100, count: prices.filter(p => p > 50 && p <= 100).length },
-        { min: 100, max: 200, count: prices.filter(p => p > 100 && p <= 200).length },
-        { min: 200, max: 500, count: prices.filter(p => p > 200 && p <= 500).length },
-        { min: 500, max: maxPrice, count: prices.filter(p => p > 500).length }
-      ].filter(range => range.count > 0);
-
-      // Process tags
-      const tagCounts: Record<string, number> = {};
-      products.forEach(product => {
-        product.tags.forEach(tag => {
-          tagCounts[tag] = (tagCounts[tag] || 0) + 1;
-        });
-      });
-
-      const tagFilters = Object.entries(tagCounts)
-        .map(([name, count]) => ({ name, count }))
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 20);
-
+  /**
+   * Get search analytics
+   */
+  async getSearchAnalytics(storeId: string, period: string = '30d'): Promise<any> {
+    try {
+      // This would typically analyze search patterns and popular terms
+      // For now, return basic structure
       return {
-        categories: categoryFilters,
-        priceRanges,
-        tags: tagFilters
+        totalSearches: 0,
+        popularTerms: [],
+        searchTrends: [],
+        conversionRate: 0
       };
     } catch (error) {
-      logger.error('Error getting search filters:', error);
-      return {
-        categories: [],
-        priceRanges: [],
-        tags: []
-      };
+      logger.error('Error getting search analytics:', error);
+      throw error;
     }
+  }
+
+  // Private helper methods
+
+  private calculateAverageRating(reviews: any[]): number {
+    if (reviews.length === 0) return 0;
+    const totalRating = reviews.reduce((sum, review) => sum + review.rating, 0);
+    return Math.round((totalRating / reviews.length) * 10) / 10;
   }
 }
 

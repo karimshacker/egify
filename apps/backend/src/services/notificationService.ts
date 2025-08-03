@@ -146,21 +146,21 @@ export class NotificationService {
    */
   private async storeNotification(notificationData: NotificationData): Promise<void> {
     try {
-      const { type, title, message, data, storeId, userId, customerId } = notificationData;
+      const { type, title, message, data, userId, customerId } = notificationData;
 
-      // TODO: Create notification table in schema and store notifications
-      // await this.prisma.notification.create({
-      //   data: {
-      //     type,
-      //     title,
-      //     message,
-      //     data,
-      //     storeId,
-      //     userId,
-      //     customerId,
-      //     isRead: false
-      //   }
-      // });
+      await this.prisma.notification.create({
+        data: {
+          type,
+          title,
+          message,
+          data,
+          userId,
+          customerId,
+          isRead: false
+        }
+      });
+
+      logger.info(`Notification stored in database: ${title}`);
     } catch (error) {
       logger.error('Error storing notification:', error);
     }
@@ -388,13 +388,11 @@ export class NotificationService {
    */
   async getUserNotifications(userId: string, limit: number = 20): Promise<any[]> {
     try {
-      // TODO: Implement when notification table is created
-      // return await this.prisma.notification.findMany({
-      //   where: { userId },
-      //   orderBy: { createdAt: 'desc' },
-      //   take: limit
-      // });
-      return [];
+      return await this.prisma.notification.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        take: limit
+      });
     } catch (error) {
       logger.error('Error getting user notifications:', error);
       return [];
@@ -406,29 +404,115 @@ export class NotificationService {
    */
   async markNotificationAsRead(notificationId: string): Promise<void> {
     try {
-      // TODO: Implement when notification table is created
-      // await this.prisma.notification.update({
-      //   where: { id: notificationId },
-      //   data: { isRead: true }
-      // });
+      await this.prisma.notification.update({
+        where: { id: notificationId },
+        data: {
+          isRead: true,
+          readAt: new Date()
+        }
+      });
+
+      logger.info(`Notification marked as read: ${notificationId}`);
     } catch (error) {
       logger.error('Error marking notification as read:', error);
+      throw error;
     }
-  }
+
 
   /**
    * Get unread notification count for a user
    */
   async getUnreadNotificationCount(userId: string): Promise<number> {
     try {
-      // TODO: Implement when notification table is created
-      // return await this.prisma.notification.count({
-      //   where: { userId, isRead: false }
-      // });
-      return 0;
+      return await this.prisma.notification.count({
+        where: { userId, isRead: false }
+      });
     } catch (error) {
       logger.error('Error getting unread notification count:', error);
       return 0;
+    }
+  }
+
+  /**
+   * Mark all notifications as read for a user
+   */
+  async markAllNotificationsAsRead(userId: string): Promise<void> {
+    try {
+      await this.prisma.notification.updateMany({
+        where: { userId, isRead: false },
+        data: {
+          isRead: true,
+          readAt: new Date()
+        }
+      });
+
+      logger.info(`All notifications marked as read for user: ${userId}`);
+    } catch (error) {
+      logger.error('Error marking all notifications as read:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete a notification
+   */
+  async deleteNotification(notificationId: string, userId: string): Promise<void> {
+    try {
+      await this.prisma.notification.deleteMany({
+        where: { id: notificationId, userId }
+      });
+
+      logger.info(`Notification deleted: ${notificationId}`);
+    } catch (error) {
+      logger.error('Error deleting notification:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get user notification settings
+   */
+  async getUserNotificationSettings(userId: string): Promise<any> {
+    try {
+      // This would typically come from a user settings table
+      // For now, return default settings
+      return {
+        email: {
+          orderUpdates: true,
+          paymentNotifications: true,
+          marketing: false,
+          security: true
+        },
+        push: {
+          orderUpdates: true,
+          paymentNotifications: true,
+          marketing: false,
+          security: true
+        },
+        sms: {
+          orderUpdates: false,
+          paymentNotifications: true,
+          marketing: false,
+          security: true
+        }
+      };
+    } catch (error) {
+      logger.error('Error getting user notification settings:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update user notification settings
+   */
+  async updateUserNotificationSettings(userId: string, settings: any): Promise<void> {
+    try {
+      // This would typically update a user settings table
+      // For now, just log the update
+      logger.info(`Notification settings updated for user: ${userId}`, settings);
+    } catch (error) {
+      logger.error('Error updating user notification settings:', error);
+      throw error;
     }
   }
 }

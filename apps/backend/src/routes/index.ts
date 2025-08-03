@@ -6,6 +6,9 @@ import orderRoutes from './orderRoutes';
 import customerRoutes from './customerRoutes';
 import paymentRoutes from './paymentRoutes';
 import uploadRoutes from './uploadRoutes';
+import notificationRoutes from './notificationRoutes';
+import analyticsRoutes from './analyticsRoutes';
+import searchRoutes from './searchRoutes';
 
 const router = Router();
 
@@ -20,6 +23,9 @@ router.use(`${API_PREFIX}/orders`, orderRoutes);
 router.use(`${API_PREFIX}/customers`, customerRoutes);
 router.use(`${API_PREFIX}/payments`, paymentRoutes);
 router.use(`${API_PREFIX}/upload`, uploadRoutes);
+router.use(`${API_PREFIX}/notifications`, notificationRoutes);
+router.use(`${API_PREFIX}/analytics`, analyticsRoutes);
+router.use(`${API_PREFIX}/search`, searchRoutes);
 
 // Health check endpoint
 router.get('/health', (req, res) => {
@@ -46,7 +52,10 @@ router.get(`${API_PREFIX}/info`, (req, res) => {
         orders: `${API_PREFIX}/orders`,
         customers: `${API_PREFIX}/customers`,
         payments: `${API_PREFIX}/payments`,
-        upload: `${API_PREFIX}/upload`
+        upload: `${API_PREFIX}/upload`,
+        notifications: `${API_PREFIX}/notifications`,
+        analytics: `${API_PREFIX}/analytics`,
+        search: `${API_PREFIX}/search`
       }
     }
   });
